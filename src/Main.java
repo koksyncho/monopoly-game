@@ -2,13 +2,19 @@ import java.util.Random;
 import java.util.Scanner;
 
 public class Main {
-	private static String board[] = new String[40];
+	private static String unformattedBoard[] = new String[40];
+	private static String formattedBoard[][] = new String[40][6];
 	private static int playerAmount;
 	private static int overallTurns = 1;
 	private static String[] playerNames = new String[4];
 	private static int[] playerMoney = {2000, 2000, 2000, 2000};
 	private static int[] firstDiceRows = new int[4];
 	private static int[] secondDiceRows = new int[4];
+	private static int[] dicePairsThrownInARow = {0, 0, 0, 0};
+	private static boolean[] isInJail = new boolean[4];
+	//HAS TO BE CONFIGURED
+	private static boolean[] hasTheGetOutOfJailCard = new boolean[4];
+	private static int[] turnsSpentInJail = {0, 0, 0, 0}; 
 	private static char confirm;
 	private static String fieldAction;
 	private static String fieldOwner;
@@ -24,19 +30,33 @@ public class Main {
 	
 	public static void main(String[] args) {
 
-		fillTheBoardWithTheNeededInformation(board);
+		fillTheBoardWithTheNeededInformation(/*unformattedBoard*/);
+		
+		formatTheBoard();
+		
 		inputThePlayerAmount();
 		
 		int[] playerLocation = new int[playerAmount];
 				
 		inputThePlayerNames();
 
+		startGame(playerLocation);
 
+	}
+
+	private static void startGame(int[] playerLocation) {
 		while (!hasWon) {	
 			outputTurn();
 			makeTurn(playerLocation);
 		}
+	}
 
+	private static void formatTheBoard() {
+		for(int i = 0; i < unformattedBoard.length; i++) {
+			for(int j = 0; j < 6; j++) {
+				formattedBoard[i][j] = unformattedBoard[i].split(", ")[j];
+			}
+		}
 	}
 
 	private static void outputTurn() {
@@ -45,20 +65,60 @@ public class Main {
 
 	private static void makeTurn(int[] playerLocation) {
 		for (int i = 0; i < playerAmount; i++) {
+//			fieldAction = board[playerLocation[i]].split(", ")[2];
+//			fieldOwner = board[playerLocation[i]].split(", ")[4];
+//			fieldCost = board[playerLocation[i]].split(", ")[3];
+
 			System.out.println(playerNames[i] + "'s turn: ");
 			
-			rowTheDices(i);
-			
-			if (!hasMadeAFullLapOfTheField(playerLocation, i)) {
-				playerLocation[i] += firstDiceRows[i] + secondDiceRows[i];
-			} else {
-				playerLocation[i] = (-1) * (40 - playerLocation[i] - firstDiceRows[i] - secondDiceRows[i]);
+			for(int repeats = 0; repeats <= dicePairsThrownInARow[i]; repeats++) {
+				if(dicePairsThrownInARow[i] < 3) {
+					rowTheDices(i);
+					
+					checkForASeriesOfMatchingDiceThrows(playerLocation, i);
+					
+					calculateCurrentPlayerLocationAfterTheDiceThrow(playerLocation, i);
+					
+					outputPlayerLocation(playerLocation, i);
+					outputPlayerMoney(i);
+					decideHowToProceedWithTurn(playerLocation, i);
+					
+				}
 			}
-			outputPlayerLocation(playerLocation, i);
-			outputPlayerMoney(i);
-			decideHowToProceedWithTurn(playerLocation, i);
 		}
 
+	}
+
+	private static void calculateCurrentPlayerLocationAfterTheDiceThrow(int[] playerLocation, int i) {
+		if (!hasMadeAFullLapOfTheField(playerLocation, i)) {
+			playerLocation[i] += firstDiceRows[i] + secondDiceRows[i];
+		} else {
+			playerLocation[i] = (-1) * (40 - playerLocation[i] - firstDiceRows[i] - secondDiceRows[i]);
+		}
+	}
+
+	private static void checkForASeriesOfMatchingDiceThrows(int[] playerLocation, int i) {
+		if (firstDiceRows[i] == secondDiceRows[i]) {
+			dicePairsThrownInARow[i]++;
+		} else {
+			dicePairsThrownInARow[i] = 0;
+		}
+		
+		if (dicePairsThrownInARow[i] == 3) {
+//			board[10] = "PRISON, prison, prison options, -, -, -";
+//			board[30] = "GO TO JAIL, inprisonment, inprisonment, -, -, -";
+			dicePairsThrownInARow[i] = 0;
+			goToJail(playerLocation, i);
+		}
+		
+	}
+
+	private static void goToJail(int[] playerLocation, int i) {
+		System.out.println(playerNames[i] + " has been in Jail for " + turnsSpentInJail[i] + " turns.");
+		System.out.println("You can (t)ry to throw a pair, ");
+		turnsSpentInJail[i]++;
+		isInJail[i] = true;
+		playerLocation[i] = 10;
 	}
 
 	private static void outputPlayerMoney(int i) {
@@ -66,11 +126,17 @@ public class Main {
 	}
 
 	private static void decideHowToProceedWithTurn(int[] playerLocation, int i) {
-		fieldAction = board[playerLocation[i]].split(", ")[2];
-		fieldOwner = board[playerLocation[i]].split(", ")[4];
-		fieldCost = board[playerLocation[i]].split(", ")[3];
+		fieldAction = formattedBoard[playerLocation[i]][2];//.split(", ")[2];
+		fieldOwner = formattedBoard[playerLocation[i]][4];//.split(", ")[4];
+		fieldCost = formattedBoard[playerLocation[i]][3];//.split(", ")[3];
 		
 		System.out.println(fieldAction + " " + fieldCost + " " + fieldOwner);
+		
+		if (isOnGoToJailField()) {
+			goToJail(playerLocation, i);
+		}
+		
+		
 		if (isOnPurchasableField(/*fieldAction*/)) {
 			if (!isFieldBought()) {
 				do {
@@ -93,12 +159,27 @@ public class Main {
 						isReady = false;
 					}
 				} while (!isReady);
+			} else /*if(isFieldBought())*/ {
+				if (!fieldOwner.equals(playerNames[i])) {
+					playerMoney[i] -= Integer.parseInt(fieldCost) / 10;
+					
+					int fieldOwnerIndex = 0;
+					//should check if the fieldOwner has bankrupted? probably not, cause all of his properties go to the bank then
+					while (playerNames[fieldOwnerIndex] != fieldOwner) {
+						fieldOwnerIndex++;
+					}
+					System.out.println(playerNames[i] + " paid " + playerNames[fieldOwnerIndex] + " " + (Integer.parseInt(fieldCost) / 10));
+					playerMoney[fieldOwnerIndex] += Integer.parseInt(fieldCost) / 10;
+				} else {
+					System.out.println(playerNames[i] + " is waiting for their next turn on their property.");
+				}
 			}
 		}
 		
 		System.out.println("Are you ready to proceed or do you want to look at your options? (p)roceed/(o)ptions.");
 
 		isReady = false;	
+		
 		do {
 			System.out.println();
 			
@@ -115,47 +196,69 @@ public class Main {
 			}
 		} while (!isReady);
 	
+		//Saving the changes made to the board 
+		//(don't know if it works that way)
+		formattedBoard[playerLocation[i]]/*.split(", ")*/[2] = fieldAction;
+		formattedBoard[playerLocation[i]]/*.split(", ")*/[4] = fieldOwner;
+		formattedBoard[playerLocation[i]]/*.split(", ")*/[3] = fieldCost;
+	}
+
+	private static boolean isOnGoToJailField() {
+		boolean isOnGoToJailField = fieldAction.equals("inprisonment");
+		return isOnGoToJailField;
 	}
 
 	private static void doAuction() {
 		//default false
 		boolean[] isPlayerNotInTheAuction = new boolean[playerAmount];
 		int[] bids = new int[playerAmount];
+		for(int i = 0; i < isPlayerNotInTheAuction.length; i++) {
+			isPlayerNotInTheAuction[i] = false;
+			bids[i] = 0;
+		}
 		int highestBid = 0;
 		char decision;
-		int amountOfParticipatingPlayers = playerAmount; 
+		int amountOfParticipatingPlayers = playerAmount;
+		boolean isWinnerDeclared = false;
 		//int bid;
 		
-		while (amountOfParticipatingPlayers != 1) {
+		while (amountOfParticipatingPlayers != 1 || !isWinnerDeclared) {
 		
 			for (int i = 0; i < playerAmount; i++) {
-				if(!isPlayerNotInTheAuction[i]) {
+				if (isPlayerNotInTheAuction[i] == false) {
 					System.out.println(playerNames[i] + "'s turn: ");
-					if (amountOfParticipatingPlayers == 1) {
+					System.out.println("Currently bidding... " + amountOfParticipatingPlayers);
+					if (amountOfParticipatingPlayers <= 1) {
 						System.out.println("Being the last player " + playerNames[i] + " won - buying the property for " + highestBid + ".");
+						playerMoney[i] -= highestBid;
+						fieldOwner = playerNames[i];
+						isWinnerDeclared = true;
 						break;
 					}
 					System.out.println("(b)idding/(l)eaving");
-					decision = input.next().charAt(0);
 					
 					do {
+						decision = input.next().charAt(0);
 						if (decision == 'b') {
 							System.out.println("Enter your bid (has to be over " + highestBid + ", you can bail out by bidding below 0): ");
 							do {
 								bids[i] = input.nextInt();
 								//bid = bids[i];
 								if(bids[i] < 0) {
-									isPlayerNotInTheAuction[i] = true;
 									amountOfParticipatingPlayers--;
+									isPlayerNotInTheAuction[i] = true;
+									System.out.println(playerNames[i] + " left the auction.");
+								} else {
+									System.out.println(playerNames[i] + " bid " + bids[i]);
 								}
-								System.out.println(playerNames[i] + " bid " + bids[i]);
-							} while(bids[i] <= highestBid || isPlayerNotInTheAuction[i]);
+							} while(bids[i] <= highestBid && !isPlayerNotInTheAuction[i]);
 							if(highestBid < bids[i]){
 								highestBid = bids[i];
 							}
 						} else if (decision == 'l') {
-							isPlayerNotInTheAuction[i] = true;
 							amountOfParticipatingPlayers--;
+							isPlayerNotInTheAuction[i] = true;
+							System.out.println(playerNames[i] + " left the auction.");
 						} else {
 							//!!doesn't quite work
 							System.out.println("Invalid input ((b)id/(l)eave)..");
@@ -165,10 +268,10 @@ public class Main {
 	//					boolean validDecision = isB || isL;
 	//					System.out.println(isB + " " + isL + " result " + validDecision);
 						//some interesting stuff with the while condition with an ||
-	 				} while(!(decision != 'b' || decision != 'l'));	
+	 				} while(decision != 'b' && decision != 'l');	
 				}	
 			}
-		}
+		}	
 	}
 
 //	private static void inputWhetherToBuyFieldOrStartAnAuctionForIt() {
@@ -203,7 +306,7 @@ public class Main {
 	}
 
 	private static void outputPlayerLocation(int[] playerLocation, int i) {
-		System.out.println("Location: " + playerLocation[i] + " " + board[playerLocation[i]]);
+		System.out.println("Location: " + playerLocation[i] + " " + formattedBoard[playerLocation[i]][0] + ", " + formattedBoard[playerLocation[i]][1] + ", " + formattedBoard[playerLocation[i]][2] + ", " + formattedBoard[playerLocation[i]][3] + ", " + formattedBoard[playerLocation[i]][4] + ", " + formattedBoard[playerLocation[i]][5]/*unformattedBoard[playerLocation[i]]*/);
 	}
 
 	private static void rowTheDices(int i) {
@@ -276,117 +379,117 @@ public class Main {
 		}
 	}
 
-	private static void fillTheBoardWithTheNeededInformation(String[] board) {
+	private static void fillTheBoardWithTheNeededInformation(/*String[] unformattedBoard*/) {
 		// board[locationOfTheField] = "FieldName, FieldType,
 		// Win+/Pay-/Buy*/Upgrade=/DrawChestCard/DrawLuckyCard,
 		// cost if any, owner if any, colour if any"
-		fillTheProperties(board);
-		fillTheStations(board);
-		fillTheChests(board);
-		fillTheFactories(board);
-		fillTheLuckyDraws(board);
-		fillTheTaxes(board);
-		fillPrisons(board);
-		fillParkplace(board);
-		fillTheStart(board);
+		fillTheProperties(/*unformattedBoard*/);
+		fillTheStations(/*unformattedBoard*/);
+		fillTheChests(/*unformattedBoard*/);
+		fillTheFactories(/*unformattedBoard*/);
+		fillTheLuckyDraws(/*unformattedBoard*/);
+		fillTheTaxes(/*unformattedBoard*/);
+		fillPrisons(/*unformattedBoard*/);
+		fillParkplace(/*unformattedBoard*/);
+		fillTheStart(/*unformattedBoard*/);
 }
 
-	private static void fillParkplace(String[] board) {
-		board[20] = "PARKING, parking, pay, 0, -, -";
+	private static void fillParkplace(/*String[] unformattedBoard*/) {
+		unformattedBoard[20] = "PARKING, parking, pay, 0, -, -"; 
 	}
 
-	private static void fillTheStart(String[] board) {
-		board[0] = "COLLECT $200 AS YOU PASS, go, win, 200, -, -";
+	private static void fillTheStart(/*String[] unformattedBoard*/) {
+		unformattedBoard[0] = "COLLECT $200 AS YOU PASS, go, win, 200, -, -";
 	}
 
-	private static void fillPrisons(String[] board) {
-		board[10] = "PRISON, prison, prison options, -, -, -";
-		board[30] = "GO TO JAIL, inprisonment, inprisonment, -, -, -";
+	private static void fillPrisons(/*String[] unformattedBoard*/) {
+		unformattedBoard[10] = "PRISON, prison, prison options, -, -, -";
+		unformattedBoard[30] = "GO TO JAIL, inprisonment, inprisonment, -, -, -";
 	}
 
-	private static void fillTheTaxes(String[] board) {
-		board[4] = "TAX REWARD, reward, win, 200, -, -";
-		board[39] = "SUPER TAX, tax, pay, 100, -, -";
+	private static void fillTheTaxes(/*String[] unformattedBoard*/) {
+		unformattedBoard[4] = "TAX REWARD, reward, win, 200, -, -";
+		unformattedBoard[39] = "SUPER TAX, tax, pay, 100, -, -";
 	}
 
-	private static void fillTheLuckyDraws(String[] board) {
-		board[6] = "LUCKY DRAW, luck, draw luck card, -, -, -";
-		board[24] = "LUCKY DRAW, luck, draw luck card, -, -, -";
-		board[36] = "LUCKY DRAW, luck, draw luck card, -, -, -";
+	private static void fillTheLuckyDraws(/*String[] unformattedBoard*/) {
+		unformattedBoard[6] = "LUCKY DRAW, luck, draw luck card, -, -, -";
+		unformattedBoard[24] = "LUCKY DRAW, luck, draw luck card, -, -, -";
+		unformattedBoard[36] = "LUCKY DRAW, luck, draw luck card, -, -, -";
 	}
 
-	private static void fillTheFactories(String[] board) {
-		board[14] = "CHEZ, factory, buy, 150, no owner, -";
-		board[26] = "VIK, factory, buy, 150, no owner, -";
+	private static void fillTheFactories(/*String[] unformattedBoard*/) {
+		unformattedBoard[14] = "CHEZ, factory, buy, 150, no owner, -";
+		unformattedBoard[26] = "VIK, factory, buy, 150, no owner, -";
 	}
 
-	private static void fillTheChests(String[] board) {
-		board[1] = "COMMUNITY CHEST, chest, draw chest card, -, -, -";
-		board[16] = "COMMUNITY CHEST, chest, draw chest card, -, -, -";
-		board[34] = "COMMUNITY CHEST, chest, draw chest card, -, -, -";
+	private static void fillTheChests(/*String[] unformattedBoard*/) {
+		unformattedBoard[1] = "COMMUNITY CHEST, chest, draw chest card, -, -, -";
+		unformattedBoard[16] = "COMMUNITY CHEST, chest, draw chest card, -, -, -";
+		unformattedBoard[34] = "COMMUNITY CHEST, chest, draw chest card, -, -, -";
 	}
 
-	private static void fillTheStations(String[] board) {
-		board[5] = "SOFIA STATION, station, buy, 200, no owner, -";
-		board[15] = "PLOVDIV STATION, station, buy, 200, no owner, -";
-		board[25] = "VARNA STATION, station, buy, 200, no owner, -";
-		board[35] = "BURGAS STATION, station, buy, 200, no owner, -";
+	private static void fillTheStations(/*String[] unformattedBoard*/) {
+		unformattedBoard[5] = "SOFIA STATION, station, buy, 200, no owner, -";
+		unformattedBoard[15] = "PLOVDIV STATION, station, buy, 200, no owner, -";
+		unformattedBoard[25] = "VARNA STATION, station, buy, 200, no owner, -";
+		unformattedBoard[35] = "BURGAS STATION, station, buy, 200, no owner, -";
 	}
 
-	private static void fillTheProperties(String[] board) {
-		fillTheDarkBlueProperties(board);
-		fillTheBrownProperties(board);
-		fillTheLightBlueProperties(board);
-		fillTheGreenProperties(board);
-		fillTheYellowProperties(board);
-		fillThePurpleProperties(board);
-		fillTheOrangeProperties(board);
-		fillTheRedProperties(board);
+	private static void fillTheProperties(/*String[] unformattedBoard*/) {
+		fillTheDarkBlueProperties(/*unformattedBoard*/);
+		fillTheBrownProperties(/*unformattedBoard*/);
+		fillTheLightBlueProperties(/*unformattedBoard*/);
+		fillTheGreenProperties(/*unformattedBoard*/);
+		fillTheYellowProperties(/*unformattedBoard*/);
+		fillThePurpleProperties(/*unformattedBoard*/);
+		fillTheOrangeProperties(/*unformattedBoard*/);
+		fillTheRedProperties(/*unformattedBoard*/);
 	}
 
-	private static void fillTheRedProperties(String[] board) {
-		board[37] = "BULEVARD VITOSHA, property, buy, 360, no owner, red";
-		board[38] = "BOIANA, property, buy, 400, no owner, red";
+	private static void fillTheRedProperties(/*String[] unformattedBoard*/) {
+		unformattedBoard[37] = "BULEVARD VITOSHA, property, buy, 360, no owner, red";
+		unformattedBoard[38] = "BOIANA, property, buy, 400, no owner, red";
 	}
 
-	private static void fillTheOrangeProperties(String[] board) {
-		board[31] = "G. S. RAKOVSKI STREET, property, buy, 300, no owner, orange";
-		board[32] = "GRAF IGNATIEV STREET, property, buy, 300, no owner, orange";
-		board[33] = "G. M. DIMITROV BULEVARD, property, buy, 320, no owner, orange";
+	private static void fillTheOrangeProperties(/*String[] unformattedBoard*/) {
+		unformattedBoard[31] = "G. S. RAKOVSKI STREET, property, buy, 300, no owner, orange";
+		unformattedBoard[32] = "GRAF IGNATIEV STREET, property, buy, 300, no owner, orange";
+		unformattedBoard[33] = "G. M. DIMITROV BULEVARD, property, buy, 320, no owner, orange";
 	}
 
-	private static void fillThePurpleProperties(String[] board) {
-		board[27] = "LONDUKOV BULEVARD, property, buy, 280, no owner, purple";
-		board[28] = "PATRIARH EVTIMII BULEVARD, property, buy, 280, no owner, purple";
-		board[29] = "VASIL LEVSKI BULEVARD, property, buy, 300, no owner, purple";
+	private static void fillThePurpleProperties(/*String[] unformattedBoard*/) {
+		unformattedBoard[27] = "LONDUKOV BULEVARD, property, buy, 280, no owner, purple";
+		unformattedBoard[28] = "PATRIARH EVTIMII BULEVARD, property, buy, 280, no owner, purple";
+		unformattedBoard[29] = "VASIL LEVSKI BULEVARD, property, buy, 300, no owner, purple";
 	}
 
-	private static void fillTheYellowProperties(String[] board) {
-		board[21] = "SAN STEFANO STREET, property, buy, 220, no owner, yellow";
-		board[22] = "SHIPKA STREET, property, buy, 220, no owner, yellow";
-		board[23] = "OBORISHTE STREET, property, buy, 240, no owner, yellow";
+	private static void fillTheYellowProperties(/*String[] unformattedBoard*/) {
+		unformattedBoard[21] = "SAN STEFANO STREET, property, buy, 220, no owner, yellow";
+		unformattedBoard[22] = "SHIPKA STREET, property, buy, 220, no owner, yellow";
+		unformattedBoard[23] = "OBORISHTE STREET, property, buy, 240, no owner, yellow";
 	}
 
-	private static void fillTheGreenProperties(String[] board) {
-		board[17] = "EVLOGI GEORGIEV, property, buy, 200, no owner, green";
-		board[18] = "ORLOV BRIDGE, property, buy, 200, no owner, green";
-		board[19] = "BULGARIA BULEVARD, property, buy, 220, no owner, green";
+	private static void fillTheGreenProperties(/*String[] unformattedBoard*/) {
+		unformattedBoard[17] = "EVLOGI GEORGIEV, property, buy, 200, no owner, green";
+		unformattedBoard[18] = "ORLOV BRIDGE, property, buy, 200, no owner, green";
+		unformattedBoard[19] = "BULGARIA BULEVARD, property, buy, 220, no owner, green";
 	}
 
-	private static void fillTheLightBlueProperties(String[] board) {
-		board[11] = "MAKEDONSKI SQUARE, property, buy, 150, no owner, lightblue";
-		board[12] = "PIROTSKA STREET, property, buy, 150, no owner, lightblue";
-		board[13] = "HRISTO BOTEV, property, buy, 180, no owner, lightblue";
+	private static void fillTheLightBlueProperties(/*String[] unformattedBoard*/) {
+		unformattedBoard[11] = "MAKEDONSKI SQUARE, property, buy, 150, no owner, lightblue";
+		unformattedBoard[12] = "PIROTSKA STREET, property, buy, 150, no owner, lightblue";
+		unformattedBoard[13] = "HRISTO BOTEV, property, buy, 180, no owner, lightblue";
 	}
 
-	private static void fillTheBrownProperties(String[] board) {
-		board[7] = "CHERNI MOUNT, property, buy, 100, no owner, brown";
-		board[8] = "LOMSKI ROAD, property, buy, 100, no owner, brown";
-		board[9] = "LUVOV BRIDGE, property, buy, 100, no owner, brown";
+	private static void fillTheBrownProperties(/*String[] unformattedBoard*/) {
+		unformattedBoard[7] = "CHERNI MOUNT, property, buy, 100, no owner, brown";
+		unformattedBoard[8] = "LOMSKI ROAD, property, buy, 100, no owner, brown";
+		unformattedBoard[9] = "LUVOV BRIDGE, property, buy, 100, no owner, brown";
 	}
 
-	private static void fillTheDarkBlueProperties(String[] board) {
-		board[2] = "BLAGOEVGRAD ROAD, property, buy, 50, no owner, darkblue";
-		board[3] = "CARIGRAD ROAD, property, buy, 60, no owner, darkblue";
+	private static void fillTheDarkBlueProperties(/*String[] unformattedBoard*/) {
+		unformattedBoard[2] = "BLAGOEVGRAD ROAD, property, buy, 50, no owner, darkblue";
+		unformattedBoard[3] = "CARIGRAD ROAD, property, buy, 60, no owner, darkblue";
 	}
 }

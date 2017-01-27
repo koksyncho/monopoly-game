@@ -270,10 +270,10 @@ public class Main {
 	
 		}
 		
-		//repeated because of the card draws SHOULD BE ONLY ONCE
-		if (isOnGoToJailField() || isInJail[i]) {
-			goToJail(playerLocation, i);
-		}
+//		//repeated because of the card draws SHOULD BE ONLY ONCE
+//		if (isOnGoToJailField() || isInJail[i]) {
+//			goToJail(playerLocation, i);
+//		}
 
 		if (!isInJail[i]) {
 			if (fieldAction.equals("win")) {
@@ -320,7 +320,7 @@ public class Main {
 						while (playerNames[fieldOwnerIndex] != fieldOwner) {
 							fieldOwnerIndex++;
 						}
-						System.out.println(playerNames[i] + " paid " + playerNames[fieldOwnerIndex] + " " + ((Integer.parseInt(fieldCost) / 10) + (Integer.parseInt(formattedBoard[i][6]) * (Integer.parseInt(fieldCost) / 2))));
+						System.out.println(playerNames[i] + " paid " + playerNames[fieldOwnerIndex] + " " + ((Integer.parseInt(fieldCost) / 10) + (Integer.parseInt(formattedBoard[i][6]) * (Integer.parseInt(fieldCost) / 2))) + "$");
 						playerMoney[fieldOwnerIndex] += (Integer.parseInt(fieldCost) / 10);
 					} else {
 						System.out.println(playerNames[i] + " is waiting for their next turn on their property.");
@@ -363,7 +363,7 @@ public class Main {
 			if (Integer.parseInt(cardFieldToMoveTo) > -1) {
 				playerLocation[i] = Integer.parseInt(cardFieldToMoveTo);
 				
-				if (isOnGoToJailField()) {
+				if (playerLocation[i] == 30/*isOnGoToJailField() checks with field action*/) {
 					goToJail(playerLocation, i);
 				}
 			} else if (Integer.parseInt(cardFieldToMoveTo) < -1) {

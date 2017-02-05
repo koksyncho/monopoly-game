@@ -6,11 +6,12 @@ public class Main {
 	private static final int BOARD_FIELDS_PROPERTIES_COUNT = 7;
 	private static final int CARD_COUNT = 5;
 	private static final int CARD_PROPERTIES_COUNT = 4;
-	private static final int STARTING_MONEY = 10000;
+	private static final int STARTING_MONEY = 500;
 	private static final int MAX_AMOUNT_OF_PLAYERS = 4;
 	private static final int MIN_AMOUNT_OF_PLAYERS = 2;
 	private static final int DEFAULT_STARTING_COUNT = 0;
 	private static final int MAX_TURNS_TO_SPEND_IN_JAIL = 3;
+	private static final int MAX_PAIRS_OF_DICE_THROWN_IN_A_ROW = 3;
 	
 	private static String unformattedBoard[] = new String[BOARD_FIELDS_COUNT];
 	private static String formattedBoard[][] = new String[BOARD_FIELDS_COUNT][BOARD_FIELDS_PROPERTIES_COUNT];
@@ -57,15 +58,8 @@ public class Main {
 	static Random rand = new Random();
 	
 	public static void main(String[] args) {
-
-		fillTheBoardWithTheNeededInformation();
-		formatTheBoard();
 		
-		fillTheCommunityChestCardsInformation();
-		formatTheCommunityChestCards();
-		
-		fillTheLuckyDrawCardsInformation();
-		formatTheLuckyDrawCards();
+		prepareBoard();
 		
 		inputThePlayerAmount();
 		
@@ -75,6 +69,17 @@ public class Main {
 
 		startGame(playerLocation);
 
+	}
+
+	private static void prepareBoard() {
+		fillTheBoardWithTheNeededInformation();
+		formatTheBoard();
+		
+		fillTheCommunityChestCardsInformation();
+		formatTheCommunityChestCards();
+		
+		fillTheLuckyDrawCardsInformation();
+		formatTheLuckyDrawCards();
 	}
 
 	private static void startGame(int[] playerLocation) {
@@ -93,9 +98,7 @@ public class Main {
 
 	private static void makeTurn(int[] playerLocation) {
 		for (int i = 0; i < playerAmount; i++) {
-//			fieldAction = board[playerLocation[i]].split(", ")[2];
-//			fieldOwner = board[playerLocation[i]].split(", ")[4];
-//			fieldCost = board[playerLocation[i]].split(", ")[3];
+			
 			if(areAllPlayersBankrupted()) {
 				System.out.println("All players have bankrupted, there is no winner.");
 				hasWon = true;
@@ -133,19 +136,6 @@ public class Main {
 		}
 
 	}
-
-	private static void isOnlyOnePlayerLeft(int i) {
-		if (playerAmount - countOfBankruptedPlayers <= 1) {
-			for (int index = 0; index < playerAmount; index++) {
-				if (!isBankrupted[index]) {
-					System.out.println(playerNames[index] + " survived the longest and won the game.");
-					System.out.println("Congratulations " + playerNames[index] + "!");
-				}
-			}
-			System.out.println();
-			hasWon = true;
-		}
-	}
 	
 	private static boolean areAllPlayersBankrupted() {
 		boolean isEveryPlayerBankrupted = true;
@@ -174,6 +164,19 @@ public class Main {
 		}
 	}
 	
+	private static void isOnlyOnePlayerLeft(int i) {
+		if (playerAmount - countOfBankruptedPlayers <= 1) {
+			for (int index = 0; index < playerAmount; index++) {
+				if (!isBankrupted[index]) {
+					System.out.println(playerNames[index] + " survived the longest and won the game.");
+					System.out.println("Congratulations " + playerNames[index] + "!");
+				}
+			}
+			System.out.println();
+			hasWon = true;
+		}
+	}
+	
 	private static void rowTheDices(int i) {
 
 		System.out.println("Press enter to row the dice: ");
@@ -182,8 +185,6 @@ public class Main {
 		readString = input.nextLine();
 		
 	    while(readString!=null) {
-	        System.out.println(readString);
-
 	        if (readString.isEmpty()) {
 	    		firstDiceRows[i] = rowDice();
 	    		outputTheResultOfTheFirstDicesRow(i);
@@ -203,6 +204,24 @@ public class Main {
 
 	}
 
+	private static void checkForASeriesOfMatchingDiceThrows(int[] playerLocation, int i) {
+		if (firstDiceRows[i] == secondDiceRows[i]) {
+			System.out.println(playerNames[i] + " threw a pair.");
+			dicePairsThrownInARow[i]++;
+		} else {
+			dicePairsThrownInARow[i] = DEFAULT_STARTING_COUNT;
+		}
+		
+		if (dicePairsThrownInARow[i] == MAX_PAIRS_OF_DICE_THROWN_IN_A_ROW) {
+			System.out.println(playerNames[i] + " threw 3 pairs in a row and is sent to jail for cheating.");
+			dicePairsThrownInARow[i] = DEFAULT_STARTING_COUNT;
+			goToJail(playerLocation, i);
+		} else if (dicePairsThrownInARow[i] < MAX_PAIRS_OF_DICE_THROWN_IN_A_ROW && dicePairsThrownInARow[i] >= 1){
+			System.out.println(playerNames[i] + " can throw again.");
+		}
+		
+	}
+	
 	private static void calculateCurrentPlayerLocationAfterTheDiceThrow(int[] playerLocation, int i) {
 		if (!hasMadeAFullLapOfTheField(playerLocation, i)) {
 			playerLocation[i] += firstDiceRows[i] + secondDiceRows[i];
@@ -210,25 +229,6 @@ public class Main {
 			playerLocation[i] = (-1) * (BOARD_FIELDS_COUNT - playerLocation[i] - firstDiceRows[i] - secondDiceRows[i]);
 		}
 	}
-
-	private static void checkForASeriesOfMatchingDiceThrows(int[] playerLocation, int i) {
-		if (firstDiceRows[i] == secondDiceRows[i]) {
-			System.out.println(playerNames[i] + " threw a pair.");
-			dicePairsThrownInARow[i]++;
-		} else {
-			dicePairsThrownInARow[i] = 0;
-		}
-		
-		if (dicePairsThrownInARow[i] == 3) {
-//			System.out.println(playerNames[i] + " threw 3 pairs in a row and is sent to jail for cheating.");
-			dicePairsThrownInARow[i] = 0;
-			goToJail(playerLocation, i);
-		} else if (dicePairsThrownInARow[i] < 3 && dicePairsThrownInARow[i] >= 1){
-			System.out.println(playerNames[i] + " can throw again.");
-		}
-		
-	}
-
 
 	private static void outputPlayerMoney(int i) {
 		System.out.println("Money: " + playerMoney[i] + "$");
@@ -238,7 +238,7 @@ public class Main {
 		getTheFieldParameters(playerLocation, i);
 		
 		//System.out.println(fieldAction + " " + fieldCost + " " + fieldOwner);
-
+		
 		if (isOnGoToJailField() || isInJail[i]) {
 			goToJail(playerLocation, i);
 		}
@@ -270,69 +270,86 @@ public class Main {
 	
 		}
 		
-//		//repeated because of the card draws SHOULD BE ONLY ONCE
-//		if (isOnGoToJailField() || isInJail[i]) {
-//			goToJail(playerLocation, i);
-//		}
-
 		if (!isInJail[i]) {
-			if (fieldAction.equals("win")) {
-				//works for tax and go fields
-				System.out.println(playerNames[i] + " won " + fieldCost + "$");
-				playerMoney[i] += Integer.parseInt(fieldCost);
-			}
+			winningMoneyOutput(i);
 			
-			if (fieldAction.equals("pay")) {
-				System.out.println(playerNames[i] + " paid " + fieldCost + "$");
-				playerMoney[i] -= Integer.parseInt(fieldCost);
-			}
+			payingMoneyOutput(i);
+			
 		}
 
 		if (!isInJail[i]) {
-			
-			if (isOnPurchasableField()) {
-				if (!isFieldBought()) {
-					do {
-						System.out.println();
-
-						System.out.println("You can (b)uy the field for " + fieldCost + "$ or start an (a)uction for it.");
-						choice = input.next().charAt(0);
-					
-						if (choice == 'b') {
-							playerMoney[i] -= Integer.parseInt(fieldCost);
-							fieldOwner = playerNames[i];
-							isReady = true;
-						} else if (choice == 'a') {
-							System.out.println("DOING THE AUCTION...");
-							doAuction();
-							isReady = true;
-						} else {
-							System.out.println("Invalid input ((b)uy/(a)uction).");
-							isReady = false;
-						}
-					} while (!isReady);
-				} else {
-					if (!fieldOwner.equals(playerNames[i])) {
-						// we tax a tenth of the field cost plus a half of it for each building
-						playerMoney[i] -= (Integer.parseInt(fieldCost) / 10) + ((Integer.parseInt(formattedBoard[i][6]) * (Integer.parseInt(fieldCost) / 2)));
-						
-						int fieldOwnerIndex = 0;
-						while (playerNames[fieldOwnerIndex] != fieldOwner) {
-							fieldOwnerIndex++;
-						}
-						System.out.println(playerNames[i] + " paid " + playerNames[fieldOwnerIndex] + " " + ((Integer.parseInt(fieldCost) / 10) + (Integer.parseInt(formattedBoard[i][6]) * (Integer.parseInt(fieldCost) / 2))) + "$");
-						playerMoney[fieldOwnerIndex] += (Integer.parseInt(fieldCost) / 10);
-					} else {
-						System.out.println(playerNames[i] + " is waiting for their next turn on their property.");
-					}
-				}
-			}		
-		}
-		
+			puchasableFieldOptions(i);
+		}		
 		System.out.println("Are you ready to proceed or do you want to look at your options? (p)roceed/(o)ptions.");
 
 		isReady = false;	
 		
+		proceedOrLookIntoOptions(i);
+		
+		updateTheFieldParameters(playerLocation, i);
+		
+		System.out.println("-------------------------------------------------------------------------------------");
+
+		System.out.println();
+	}
+	
+
+	private static void winningMoneyOutput(int i) {
+		if (fieldAction.equals("win")) {
+			//works for tax and go fields
+			System.out.println(playerNames[i] + " won " + fieldCost + "$");
+			playerMoney[i] += Integer.parseInt(fieldCost);
+		}
+	}
+
+	private static void payingMoneyOutput(int i) {
+		if (fieldAction.equals("pay")) {
+			System.out.println(playerNames[i] + " paid " + fieldCost + "$");
+			playerMoney[i] -= Integer.parseInt(fieldCost);
+		}
+	}
+
+	private static void puchasableFieldOptions(int i) {
+		if (isOnPurchasableField()) {
+			if (!isFieldBought()) {
+				do {
+					System.out.println();
+
+					System.out.println("You can (b)uy the field for " + fieldCost + "$ or start an (a)uction for it.");
+					choice = input.next().charAt(0);
+				
+					if (choice == 'b') {
+						playerMoney[i] -= Integer.parseInt(fieldCost);
+						fieldOwner = playerNames[i];
+						isReady = true;
+					} else if (choice == 'a') {
+						System.out.println("DOING THE AUCTION...");
+						doAuction();
+						isReady = true;
+					} else {
+						System.out.println("Invalid input ((b)uy/(a)uction).");
+						isReady = false;
+					}
+				} while (!isReady);
+			} else {
+				if (!fieldOwner.equals(playerNames[i])) {
+					// we tax a tenth of the field cost plus a half of it for each building
+					playerMoney[i] -= (Integer.parseInt(fieldCost) / 10) + ((Integer.parseInt(formattedBoard[i][6]) * (Integer.parseInt(fieldCost) / 2)));
+					
+					int fieldOwnerIndex = 0;
+					while (playerNames[fieldOwnerIndex] != fieldOwner) {
+						fieldOwnerIndex++;
+					}
+					System.out.println(playerNames[i] + " paid " + playerNames[fieldOwnerIndex] + " " + ((Integer.parseInt(fieldCost) / 10) + (Integer.parseInt(formattedBoard[i][6]) * (Integer.parseInt(fieldCost) / 2))) + "$");
+					playerMoney[fieldOwnerIndex] += (Integer.parseInt(fieldCost) / 10);
+				} else {
+					System.out.println(playerNames[i] + " is waiting for their next turn on their property.");
+				}
+			}
+		}		
+	}
+
+	private static void proceedOrLookIntoOptions(int i) {
 		do {
 			choice = input.next().charAt(0);
 			
@@ -350,20 +367,14 @@ public class Main {
 			}
 		} while (!isReady);
 	
-		updateTheFieldParameters(playerLocation, i);
-		
-		System.out.println("-------------------------------------------------------------------------------------");
-
-		System.out.println();
 	}
-	
 
 	private static void moveCardDraw(int[] playerLocation, int i) {
 		if (cardAction.equals("move")) {
 			if (Integer.parseInt(cardFieldToMoveTo) > -1) {
 				playerLocation[i] = Integer.parseInt(cardFieldToMoveTo);
 				
-				if (playerLocation[i] == 30/*isOnGoToJailField() checks with field action*/) {
+				if (playerLocation[i] == 30) {
 					goToJail(playerLocation, i);
 				}
 			} else if (Integer.parseInt(cardFieldToMoveTo) < -1) {
@@ -413,6 +424,7 @@ public class Main {
 	private static void goThroughOptions(int i) {
 		System.out.println("Under construction...");
 	}
+	
 	private static void goToJail(int[] playerLocation, int i) {
 		System.out.println(playerNames[i] + " has been in Jail for " + turnsSpentInJail[i] + " turns.");
 		System.out.println("You can (t)ry to throw a pair, (b)ribe the guard with 100$, (w)ait it out (released after " + (3 - turnsSpentInJail[i]) +" turns), or (u)se a Get Out Of Jail card if you have one.");
